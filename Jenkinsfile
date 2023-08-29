@@ -16,7 +16,7 @@ pipeline {
                 }
             }
         }
-        
+    
         stage('Zip Artifacts') {
             steps {
                 script {
@@ -28,7 +28,7 @@ pipeline {
                 }
             }
         }
-        
+    
         stage('Push to S3') {
             steps {
                 withAWS(credentials: "${env.CREDENTIALS_ID}", region: "${env.AWS_REGION}") {
@@ -46,4 +46,6 @@ pipeline {
             deleteDir()
         }
     }
+}
+}
 }
