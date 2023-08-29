@@ -4,7 +4,6 @@ pipeline {
     environment {
         SOURCE_DIR     = 'examples'
         BUCKET_NAME    = 'jenkins-artifact-bucket-deniz'
-        AWS_REGION     = 'eu-north-1'
         CREDENTIALS_ID = 'b65ed143-2601-406c-85c1-c7c8e81f59f3'
     }
 
@@ -20,32 +19,28 @@ pipeline {
         stage('Zip Artifacts') {
             steps {
                 script {
-                    def sourceDir   = "${env.SOURCE_DIR}"
                     def zipFileName = "${env.BUILD_NUMBER}-artifacts.zip"
                     
                     sh 'echo "Creating zip archive for files under examples directory"'
-                    sh "cd ${sourceDir} && zip -r ${zipFileName}"
+                    sh "zip -r ${zipFileName} ${env.SOURCE_DIR}"
                 }
             }
         }
     
         stage('Push to S3') {
             steps {
-                withAWS(credentials: "${env.CREDENTIALS_ID}", region: "${env.AWS_REGION}") {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: "${env.CREDENTIALS_ID}"
+                ]]) {
                 script {
                     def zipFileName = "${env.BUILD_NUMBER}-artifacts.zip"
 
                     sh 'echo "Uploading content with AWS creds"'
-                    sh "aws s3 cp ${zipFileName} s3://${env.BUCKET_NAME}/${zipFileName}"
+                    sh "/usr/local/bin/aws s3 cp ${zipFileName} s3://$BUCKET_NAME"
                 }
             }
         }
-    
-    post {
-        always {
-            deleteDir()
-        }
     }
-}
-}
+  }
 }
