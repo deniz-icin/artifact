@@ -2,9 +2,9 @@ pipeline {
     agent any
     
     environment {
-        SOURCE_DIR     = 'examples'
-        BUCKET_NAME    = 'jenkins-artifact-bucket-deniz'
-        CREDENTIALS_ID = 'b65ed143-2601-406c-85c1-c7c8e81f59f3'
+        SOURCE_DIR                 = 'examples'
+        BUCKET_NAME                = 'jenkins-hermit-artifacts-zip'
+        AWS_DEFAULT_REGION         = 'eu-north-1'
     }
 
     stages {
@@ -19,28 +19,34 @@ pipeline {
         stage('Zip Artifacts') {
             steps {
                 script {
-                    def zipFileName = "${env.BUILD_NUMBER}-artifacts.zip"
+                    def zipFileName = "${env.BUILD_NUMBER}-hermit-artifacts.zip"
                     
-                    sh 'echo "Creating zip archive for files under examples directory"'
                     sh "zip -r ${zipFileName} ${env.SOURCE_DIR}"
+                    sh "echo 'Zip archive for files under examples directory'"
                 }
             }
         }
     
         stage('Push to S3') {
             steps {
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: "${env.CREDENTIALS_ID}"
-                ]]) {
+                withCredentials([
+                    string(credentialsId: 'AWS_JENKINS_S3_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                    string(credentialsId: 'AWS_JENKINS_S3_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
+                ]){
                 script {
-                    def zipFileName = "${env.BUILD_NUMBER}-artifacts.zip"
-
-                    sh 'echo "Uploading content with AWS creds"'
+                    def zipFileName = "${env.BUILD_NUMBER}-hermit-artifacts.zip"
+                    
+                    sh "echo 'Uploading content with AWS creds'"
                     sh "/usr/local/bin/aws s3 cp ${zipFileName} s3://$BUCKET_NAME"
                 }
             }
         }
     }
   }
+
+    post {
+        always {
+            sh "rm -rf *"
+        }
+    }
 }
