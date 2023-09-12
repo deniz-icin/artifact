@@ -18,12 +18,9 @@ pipeline {
     
         stage('Zip Artifacts') {
             steps {
-                script {
-                    def zipFileName = "${env.BUILD_NUMBER}-hermit-artifacts.zip"
-                    
-                    sh "zip -r ${zipFileName} ${env.SOURCE_DIR}"
-                    sh "echo 'Zip archive for files under examples directory'"
-                }
+                sshagent(credentials : ['d57de4e3-584b-405c-b599-919d73fa7448']) {
+                    sh 'ssh -v denizicinn@hotmail.com'
+        }
             }
         }
   }
