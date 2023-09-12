@@ -1,0 +1,36 @@
+pipeline {
+    agent any
+    
+    environment {
+        SOURCE_DIR                 = 'examples'
+        BUCKET_NAME                = 'jenkins-hermit-artifacts-zip'
+        AWS_DEFAULT_REGION         = 'eu-north-1'
+    }
+
+    stages {
+        stage('Clone Repo') {
+            steps {
+                script {
+                    checkout([$class: 'GitSCM', branches: [[name: '*/main']], userRemoteConfigs: [[url: 'https://github.com/facebookexperimental/hermit']]])
+                }
+            }
+        }
+    
+        stage('Zip Artifacts') {
+            steps {
+                script {
+                    def zipFileName = "${env.BUILD_NUMBER}-hermit-artifacts.zip"
+                    
+                    sh "zip -r ${zipFileName} ${env.SOURCE_DIR}"
+                    sh "echo 'Zip archive for files under examples directory'"
+                }
+            }
+        }
+  }
+
+    post {
+        always {
+            sh "rm -rf *"
+        }
+    }
+}
