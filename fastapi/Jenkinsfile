@@ -8,16 +8,15 @@ pipeline {
     }
 
     stages {
-    
         stage('SSH') {
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: '	d57de4e3-584b-405c-b599-919d73fa7448', keyFileVariable: 'MY_SSH_KEY')]) {
-{
+                script{
                     sh 'ssh -i $MY_SSH_KEY vagrant@192.168.50.4'
         }
       }
    }
-
+}
         stage('Do sth') {
             steps {
                 script {                    
