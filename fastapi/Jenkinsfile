@@ -8,26 +8,23 @@ pipeline {
     }
 
     stages {
-        stage('Clone Repo') {
+    
+        stage('SSH') {
             steps {
-                script {
-                    checkout([$class: 'GitSCM', branches: [[name: '*/main']], userRemoteConfigs: [[url: 'https://github.com/facebookexperimental/hermit']]])
+                withCredentials([sshUserPrivateKey(credentialsId: '	d57de4e3-584b-405c-b599-919d73fa7448', keyFileVariable: 'MY_SSH_KEY')]) {
+{
+                    sh 'ssh -i $MY_SSH_KEY vagrant@192.168.50.4'
+        }
+      }
+   }
+
+        stage('Do sth') {
+            steps {
+                script {                    
+                    sh "echo 'test123'"
+                    sh "mkdir exampledir"
                 }
             }
         }
-    
-        stage('Zip Artifacts') {
-            steps {
-                sshagent(credentials : ['d57de4e3-584b-405c-b599-919d73fa7448']) {
-                    sh 'ssh vagrant@192.168.50.4'
-        }
-            }
-        }
   }
-
-    post {
-        always {
-            sh "rm -rf *"
-        }
-    }
 }
