@@ -19,7 +19,7 @@ pipeline {
         stage('Zip Artifacts') {
             steps {
                 sshagent(credentials : ['d57de4e3-584b-405c-b599-919d73fa7448']) {
-                    sh 'ssh -v denizicinn@hotmail.com'
+                    sh 'ssh vagrant@192.168.50.4'
         }
             }
         }
