@@ -1,29 +1,125 @@
+def remote = [
+   name: "docker-host", 
+   host: "192.168.56.60", 
+   user: "vagrant",
+   identityFile: "", 
+   allowAnyHosts: true
+]
+
 pipeline {
-    agent any
+
+   agent any
     
     environment {
-        SOURCE_DIR                 = 'examples'
-        BUCKET_NAME                = 'jenkins-hermit-artifacts-zip'
-        AWS_DEFAULT_REGION         = 'eu-north-1'
+        REPO_URL       = "https://github.com/deniz-icin/artifact.git"
+        REPO_DIR       = "artifact"
+        REPO_APP_DIR   = "jenkins-fastapi-compose-deployments"
+        WORKDIR        = "jenkinsapp"
+        APP_FOLDER     = "fastapi"
+        ZIP_NAME       = "fastapi-backup-${BUILD_NUMBER}.zip"
     }
 
-    stages {
-        stage('SSH') {
-            steps {
-                withCredentials([sshUserPrivateKey(credentialsId: '	d57de4e3-584b-405c-b599-919d73fa7448', keyFileVariable: 'MY_SSH_KEY')]) {
-                script{
-                    sh 'ssh -i $MY_SSH_KEY vagrant@192.168.50.4'
-        }
+   stages {
+      stage('Clone Repo') {
+         steps {
+            script {
+               withCredentials([sshUserPrivateKey(credentialsId: 'vagrant-ssh-secret', keyFileVariable: 'KEY')]){
+                 remote.identityFile = KEY
+                 def command = """
+                               [ -d ${env.REPO_DIR} ] && rm -rf ${env.REPO_DIR}
+                               [ -d ${env.WORKDIR} ] && rm -rf ${env.WORKDIR}
+                               git clone ${env.REPO_URL}
+                 """
+                 sshCommand remote: remote, command: command
+               } 
+            }
+         }
+      }
+
+      stage('Create a Directory and copy the app files') {
+         steps {
+            script {
+               withCredentials([sshUserPrivateKey(credentialsId: 'vagrant-ssh-secret', keyFileVariable: 'KEY')]){
+                 remote.identityFile = KEY
+                 sshCommand remote: remote, command: "mkdir -p ${env.WORKDIR}"
+                 sshCommand remote: remote, command: "cp -r ${env.REPO_DIR}/${env.REPO_APP_DIR}/* ${env.WORKDIR}"
+                 sshCommand remote: remote, command: "cd ${env.WORKDIR}/${env.APP_FOLDER} && docker-compose down"
+               }
+            } 
+         }
+      }
+
+      stage('Zip Current Folder') {
+         steps {
+            script {
+               withCredentials([sshUserPrivateKey(credentialsId: 'vagrant-ssh-secret', keyFileVariable: 'KEY')]){
+                 remote.identityFile = KEY
+                 sshCommand remote: remote, command: "zip -r ${env.ZIP_NAME} ${env.WORKDIR}"
+               }
+            } 
+         }
+      }
+
+      stage('Docker Build') {
+         steps {
+            script {
+               withCredentials([sshUserPrivateKey(credentialsId: 'vagrant-ssh-secret', keyFileVariable: 'KEY')]){
+                 remote.identityFile = KEY
+                 sshCommand remote: remote, command: "cd ${env.WORKDIR}/${env.APP_FOLDER} && docker-compose build"
+                 sshCommand remote: remote, command: "cd ${env.WORKDIR}/${env.APP_FOLDER} && docker-compose up -d"
+               }
+            } 
+         }
+      }
+
+      stage('Show the Output') {
+         steps {
+            script {
+               withCredentials([sshUserPrivateKey(credentialsId: 'vagrant-ssh-secret', keyFileVariable: 'KEY')]){
+                 remote.identityFile = KEY
+                 def command = """
+                               for i in {1..10}; do url='http://localhost:8000';
+                                  http_code=\$(curl -o /dev/null -w "%{http_code}" "\$url");
+                                  [ "\$http_code" -ne 200 ] && echo "URL: \$url | Status Code: \$http_code" >> non_200_responses.txt; 
+                               done
+                               echo "\n\nIn total \$(wc -l < non_200_responses.txt) non-200 outputs we have as stated below:"
+                               cat non_200_responses.txt && rm -rf non_200_responses.txt
+                 """
+                 sshCommand remote: remote, command: command
+               }
+            } 
+         }
       }
    }
 }
-        stage('Do sth') {
-            steps {
-                script {                    
-                    sh "echo 'test123'"
-                    sh "mkdir exampledir"
+
+
+
+
+
+
+        stage('Show the Output') {
+         steps {
+            script {
+               withCredentials([sshUserPrivateKey(credentialsId: 'vagrant-ssh-secret', keyFileVariable: 'KEY')]){
+                 remote.identityFile = KEY
+                 def command = """
+                        for i in {1..10}; do
+                            url='http://localhost:8000' ;
+                            http_code=\$(curl -o /dev/null -w "%{http_code}" "\$url") ;
+                            if [ "\$http_code" -ne 200 ]; then
+                                echo "Non-200 Response: \$url | Status Code: \$http_code"
+                                echo "URL: \$url | Status Code: \$http_code" >> non_200_responses.txt
+                            fi
+                        done
+                        echo "Result of the non-200 codes:"
+                        cat non_200_responses.txt
+                        rm -f non_200_responses.txt
+                    """
+                 sshCommand remote: remote, command: command
                 }
             }
-        }
-  }
+         } 
+      }
+   }
 }
