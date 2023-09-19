@@ -92,34 +92,3 @@ pipeline {
       }
    }
 }
-
-
-
-
-
-
-        stage('Show the Output') {
-         steps {
-            script {
-               withCredentials([sshUserPrivateKey(credentialsId: 'vagrant-ssh-secret', keyFileVariable: 'KEY')]){
-                 remote.identityFile = KEY
-                 def command = """
-                        for i in {1..10}; do
-                            url='http://localhost:8000' ;
-                            http_code=\$(curl -o /dev/null -w "%{http_code}" "\$url") ;
-                            if [ "\$http_code" -ne 200 ]; then
-                                echo "Non-200 Response: \$url | Status Code: \$http_code"
-                                echo "URL: \$url | Status Code: \$http_code" >> non_200_responses.txt
-                            fi
-                        done
-                        echo "Result of the non-200 codes:"
-                        cat non_200_responses.txt
-                        rm -f non_200_responses.txt
-                    """
-                 sshCommand remote: remote, command: command
-                }
-            }
-         } 
-      }
-   }
-}
