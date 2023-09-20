@@ -1,0 +1,52 @@
+# Vagrantfile
+Vagrant.configure("2") do |config|
+    # VM for Docker
+    config.vm.define "docker_vm" do |docker|
+
+      docker.vm.box = "ubuntu/focal64"
+      docker.vm.network "private_network", type: "static", ip: "192.168.56.60"
+      docker.vm.usable_port_range = 8000..12000
+      docker.vm.provision "shell", inline: <<-SHELL
+        # Update package list and install dependencies
+        sudo apt-get update -y
+        sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+
+        # Install Docker
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+        sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+        sudo apt-get update -y
+        sudo apt-get install -y docker-ce
+        sudo usermod -aG docker vagrant
+        newgrp docker
+
+        # Install Docker Compose
+        curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        chmod +x /usr/local/bin/docker-compose
+
+        # Install zip and unzip
+        sudo apt-get install -y unzip
+        sudo apt-get install -y zip
+      SHELL
+    end
+  
+    # VM for Jenkins
+    config.vm.define "jenkins_vm" do |jenkins|
+
+      jenkins.vm.box = "ubuntu/focal64"
+      jenkins.vm.network "forwarded_port", guest: 80, host: 8080
+      jenkins.vm.provision "shell", inline: <<-SHELL
+        # Update package list and install dependencies
+        sudo apt-get update -y
+        sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+  
+        # Install Jenkins and its dependencies
+        sudo apt-get install -y ca-certificates
+        sudo apt-get install -y openjdk-11-jdk
+        curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | sudo apt-key add -
+        sudo sh -c 'echo deb http://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list'
+        sudo apt-get update -y
+        sudo apt-get install -y jenkins
+        sudo systemctl start jenkins
+        SHELL
+    end
+  end
